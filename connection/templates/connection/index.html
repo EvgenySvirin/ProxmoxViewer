@@ -1,0 +1,50 @@
+<html>
+  <head>
+    <title>Connections</title>
+    <style>
+      div {
+        margin-bottom: 10px;
+      }
+      label {
+        display: inline-block;
+        width: 150px;
+      }
+    </style>
+  </head>
+  
+{% if latest_connection_list %}
+    <p> List of connections: </p>
+    <ul>
+	{% for connection in latest_connection_list %}
+		<li><a href="{% url 'connection:detail' connection.id %}">{{ connection }}</a></li>
+	{% endfor %}
+    </ul>
+{% else %}
+    <p>No connections are available.</p>
+{% endif %}
+
+
+<p> You can create new connection:</p>           
+
+	
+<form action="{% url 'connection:index' %}" method="post">
+{% csrf_token %}
+<fieldset>
+	<label for="host"> host: </label>
+	<input type="text" id="host" name="host" value="192.168.122.104"><br><br>
+	<label for="host"> backend: </label>
+	<input type="text" id="backend" name="backend" value="https"><br><br>
+	<label for="host"> service: </label>
+	<input type="text" id="service" name="service" value="PVE"><br><br>
+	<label for="host"> user: </label>
+	<input type="text" id="user" name="user" value="api@pve"><br><br>
+	<label for="host"> password: </label>
+	<input type="text" id="password" name="password" value="11111"><br><br>
+	<label for="host"> verify_ssl: </label>
+	<input type="text" id="verify_ssl" name="verify_ssl" value="False"><br><br>
+	<label for="host"> port: </label>
+	<input type="text" id="port" name="port" value="8006"><br><br>
+	<input type="submit" value="Create Connection">
+</fieldset>
+</form>
+</html>
