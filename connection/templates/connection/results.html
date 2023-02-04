@@ -1,1 +1,39 @@
+<html>
+  <head>
+    <title>Containers and virtual machines</title>
+    <style>
+      div {
+        margin-bottom: 10px;
+      }
+      label {
+        display: inline-block;
+        width: 150px;
+      }
+    </style>
+  </head>
+  
+  
 {{ res }}
+
+<form method="post">
+{% csrf_token %}
+<input type="submit" name ="Refresh" value="Refresh">
+</form>
+
+
+{% for virt in virts  %}
+	<div>
+	 {{ virt.0 }} {{virt.1}} {{ virt.2 }}
+	</div>
+	<form method="post">
+	{% csrf_token %}
+	<input type="submit"  name =s{{virt.0}} value="Start/Stop">
+	</form>
+
+
+{% endfor %}
+
+
+
+
+

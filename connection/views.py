@@ -10,6 +10,10 @@ from django.shortcuts import get_object_or_404, render
 
 from .models import Connection
 
+
+proxmox = None
+proxmox_connection_id = None
+
 def index(request):
     """
     host = "192.168.122.104"
@@ -43,13 +47,53 @@ def detail(request, connection_id):
 
     return render(request, 'connection/detail.html', {'connection': connection})
 
-def results(request, connection_id):
-    res = connect(request, connection_id)
-    return render(request, 'connection/results.html', {'res': res})
+def toggle_virt(virt_id): #toggle start/stop of a container or virtual machine
+    global proxmox
+    for node in proxmox.nodes.get():
+    	for vm in proxmox.nodes(node['node']).lxc.get():
+        	if int(vm['vmid']) == virt_id:
+        		print(vm['status'])
+        		toggled_status = "start" if vm['status'] == "stopped" else "stop"
+        		post_string = f"nodes/{node['node']}/lxc/{virt_id}/status/{toggled_status}"
+        		print(post_string)
+        		proxmox.post(post_string)
+        		#proxmox.nodes(node['node']).lxc.post("nodes/{l}/lxc/102/status/stop")
+        		break
+			
+def results(request, connection_id): 
+    print("FOO")
+    if request.method == "POST":
+    	if "Refresh" in request.POST.keys():
+   	   connect(request, connection_id)
+   	   return HttpResponseRedirect(reverse('connection:results', args=(connection_id,)))
+    	virt_id = None
+    	for k in request.POST.keys():
+    		if (k[0] == 's'):
+    			virt_id = int(k[1:])
+    			break
+    	toggle_virt(virt_id)
+    	return HttpResponseRedirect(reverse('connection:results', args=(connection_id,)))
+    	
+    	
+    connect(request, connection_id) # ну тут типо нужно правильно следить за соединением, пока так сойдет
+    
+    global proxmox
+    res = "Connection id:"
+    global proxmox_connection_id
+    res += str(proxmox_connection_id)
+    virts = []
+    for node in proxmox.nodes.get():
+    	for vm in proxmox.nodes(node['node']).lxc.get():
+        	virts.append((vm['vmid'], vm['name'], vm['status']))
+    virts = list(sorted(virts))
+    return render(request, 'connection/results.html', {'res': res, 'virts' : virts})
 
 def connect(request, connection_id):
+    global proxmox_connection_id
+    proxmox_connection_id = connection_id
+    
     current_connection = Connection.objects.get(pk=connection_id)
-    print(current_connection)
+   
     host = current_connection.host
     backend = current_connection.backend
     service = current_connection.service
@@ -57,20 +101,15 @@ def connect(request, connection_id):
     password = current_connection.password
     verify_ssl = current_connection.verify_ssl
     port = current_connection.port
-
+	
+    global proxmox
     proxmox = ProxmoxAPI(
     host=host, backend=backend, service=service, user=user, password=password,
     verify_ssl=verify_ssl, port=port)
 
-    res = ""
-    for node in proxmox.nodes.get():
-          print(node)
-          res += str(node)
-    
-    return res
-    
+
+
 def create_connection(request):
-    print("HAHA")
     host = request.POST['host']
     backend = request.POST['backend']
     service = request.POST['service']

@@ -27,7 +27,7 @@
 <p> You can create new connection:</p>           
 
 	
-<form action="{% url 'connection:index' %}" method="post">
+<form method="post">
 {% csrf_token %}
 <fieldset>
 	<label for="host"> host: </label>
