@@ -1,6 +1,6 @@
 <html>
   <head>
-    <title>Containers and virtual machines</title>
+    <title>Containers and VMs</title>
     <style>
       div {
         margin-bottom: 10px;
@@ -23,17 +23,69 @@
 
 {% for virt in virts  %}
 	<div>
-	 {{ virt.0 }} {{virt.1}} {{ virt.2 }}
+	 <p> id: {{ virt.0 }} </p>
+	 <p>  node name: {{ virt.2 }}  </p> 
+	 <p> name: {{virt.1}}  </p> 
+ 	 <p> status: {{ virt.3 }}  </p> 
 	</div>
 	<form method="post">
 	{% csrf_token %}
-	<input type="submit"  name =s{{virt.0}} value="Start/Stop">
+	<input type="submit"  name =s{{virt.0}}s{{virt.2}} value="Start/Stop">
 	</form>
 
 
 {% endfor %}
 
 
+<form method="post">
+{% csrf_token %}
+<fieldset>
+	<label for="nodename"> nodename: </label>
+	<input type="text" id="nodename" name="nodename" value=""><br><br>
+	<label for="storage"> storage: </label>
+	<input type="text" id="storage" name="storage" value="local"><br><br>
+	
+	<label for="template_url"> template download url: </label>
+	<input type="text" id="template_url" name="template_url" value=""><br><br>
+</fieldset>
+<input type="submit" name ="Download template" value="Download template">
+</form>
+
+
+<form method="post">
+{% csrf_token %}
+<fieldset>
+	<label for="nodename"> nodename: </label>
+	<input type="text" id="nodename" name="nodename" value=""><br><br>
+	
+	<label for="id"> id: </label>
+	<input type="text" id="vmid" name="vmid" value=""><br><br>
+	<label for="ostemplate"> ostemplate: </label>
+	<input type="text" id="ostemplate" name="ostemplate" value="local:vztmpl/ubuntu-20.04-standard_20.04-1_amd64.tar.gz"><br><br>
+	<label for="hostname"> hostname: </label>
+	<input type="text" id="hostname" name="hostname" value="hostname"><br><br>
+	<label for="storage"> storage: </label>
+	<input type="text" id="storage" name="storage" value="local-lvm"><br><br>
+	
+	<label for="cores"> cores: </label>
+	<input type="text" id="cores" name="cores" value="2"><br><br>
+	
+	<label for="memory"> memory: </label>
+	<input type="text" id="memory" name="memory" value="512"><br><br>
+	
+	<label for="swap"> swap: </label>
+	<input type="text" id="swap" name="swap" value="512"><br><br>
+	
+	<label for="net0"> net0: </label>
+	<input type="text" id="net0" name="net0" value="name=eth0,bridge=vmbr0,firewall=1,tag=425,ip=dhcp"><br><br>
+	
+	<label for="password"> password: </label>
+	<input type="text" id="password" name="password" value=""><br><br>
+	<input type="submit" value="Create container">
+</fieldset>
+</form>
+
+</html>
 
 
 
