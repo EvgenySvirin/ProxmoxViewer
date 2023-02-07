@@ -7,8 +7,18 @@ from proxmoxer import ProxmoxAPI
 from django.shortcuts import render
 
 from django.shortcuts import get_object_or_404, render
+from django.contrib.auth.models import User
+from django.contrib.auth import authenticate, login
+
+from django.contrib.auth.models import Permission
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.auth.decorators import login_required
+
+
 
 from .models import Connection
+from .models import UserConnection
+
 import logging
 
 
@@ -16,28 +26,6 @@ logger = logging.getLogger(__name__)
 proxmox = None
 proxmox_connection_id = None
 
-def index(request):
-    if request.method == "POST":
-    	logger.warning("POST")
-    	create_connection(request)
-    	return HttpResponseRedirect(reverse('connection:index'))
-    else:
-    	logger.warning("NOT POST")
-    
-    latest_connection_list = Connection.objects.all()
-    context = {'latest_connection_list': latest_connection_list}
-
-    return render(request, 'connection/index.html', context) 
-    
-def detail(request, connection_id):
-    connection = get_object_or_404(Connection, pk=connection_id)
-    if request.method == "POST":
-    	logger.warning("POST")
-    	return HttpResponseRedirect(reverse('connection:results', args=(connection.id,)))
-    else:
-    	logger.warning("NOT POST")
-
-    return render(request, 'connection/detail.html', {'connection': connection})
 
 def toggle_virt(virt_id, node_name): #toggle start/stop of a container or virtual machine
     logger.warning("toggle")
@@ -95,14 +83,13 @@ def download_template(request, connection_id):
 	
 	proxmox.post(post_string)
 	
-
-
 def parse_id_node(post_key):
 	str_id = post_key[: post_key.find('s')]
 	str_node = post_key[post_key.find('s') + 1:]
 	return str_id, str_node
 
-def results(request, connection_id):    	   	
+@login_required
+def results(request, username, connection_id):    	   	
     connect(request, connection_id)
      
     logger.warning("results")
@@ -110,18 +97,17 @@ def results(request, connection_id):
     	logger.warning("POST")
     	logger.warning(str(request.POST.keys()))
 	
-	
     	if "Refresh" in request.POST.keys():
-   	   return HttpResponseRedirect(reverse('connection:results', args=(connection_id,)))
+   	   return HttpResponseRedirect(reverse('connection:results', args=(username, connection_id)))
     	
     	if "ostemplate" in request.POST.keys():
     	   create_container(request, connection_id)
-    	   return HttpResponseRedirect(reverse('connection:results', args=(connection_id,)))
+    	   return HttpResponseRedirect(reverse('connection:results', args=(username, connection_id)))
     	if "template_url" in request.POST.keys():
     	   logger.warning("template_url")
     	   download_template(request, connection_id)
     	   
-    	   return HttpResponseRedirect(reverse('connection:results', args=(connection_id,)))
+    	   return HttpResponseRedirect(reverse('connection:results', args=(username, connection_id)))
     	virt_id = None
     	for k in request.POST.keys():
     		if (k[0] == 's'):
@@ -129,7 +115,7 @@ def results(request, connection_id):
     			break
     	if virt_id is not None:
     		toggle_virt(virt_id, node_name)
-    	return HttpResponseRedirect(reverse('connection:results', args=(connection_id,)))
+    	return HttpResponseRedirect(reverse('connection:results', args=(username, connection_id)))
  
     global proxmox
     res = "Connection id:"
@@ -146,6 +132,7 @@ def results(request, connection_id):
     virts = list(sorted(virts))
    
     return render(request, 'connection/results.html', {'res': res, 'virts' : virts})
+
 
 def connect(request, connection_id):
     global proxmox_connection_id
@@ -166,7 +153,7 @@ def connect(request, connection_id):
     host=host, backend=backend, service=service, user=user, password=password,
     verify_ssl=verify_ssl, port=port)
 
-def create_connection(request):
+def create_connection(request): #unused
     host = request.POST['host']
     backend = request.POST['backend']
     service = request.POST['service']
@@ -185,5 +172,37 @@ def create_connection(request):
     				 port=port, 
     				 date=cur_date)
     new_connection.save()
-     
 
+
+def auth(request):
+    if request.method != "POST":
+    	logger.warning("NOT POST")
+    	return render(request, 'connection/auth.html')
+
+    username = request.POST['login']
+    password = request.POST['password']
+    user = authenticate(request, username=username, password=password)
+    if user is not None:
+        login(request, user)
+        return HttpResponseRedirect(reverse('connection:user', args=(username,)))
+    return render(request, 'connection/auth.html')
+
+@login_required
+def user(request, username): #ну не в один запрос пока что
+    users_connection = UserConnection.objects.filter(username=username).values('connection')
+    context = {'connections' :Connection.objects.filter(pk__in=users_connection).all(), 'username' : username}
+    
+    if not request.user.is_authenticated:
+        print("HELL NO")
+    else:
+    	print("K")
+    return render(request, 'connection/user.html', context) 
+
+@login_required    
+def detail(request, username, connection_id):
+    if request.method == "POST":
+    	logger.warning("NOT POST")
+    	return HttpResponseRedirect(reverse('connection:results', args=(username,connection_id)))
+    connection = get_object_or_404(Connection, pk=connection_id)
+    return render(request, 'connection/detail.html', {'connection': connection})
+    

@@ -1,0 +1,31 @@
+<html>
+  <head>
+    <title>Connections</title>
+    <style>
+      div {
+        margin-bottom: 10px;
+      }
+      label {
+        display: inline-block;
+        width: 150px;
+      }
+    </style>
+  </head>
+
+<p> HAHAHA</p>
+
+
+  
+{% if connections %}
+    <p> List of connections: </p>
+    <ul>
+	{% for connection in connections %}
+		<li><a href="/connection/auth/{{username}}/{{connection.id}}/">{{ connection }}</a></li>
+	{% endfor %}
+    </ul>
+{% else %}
+    <p>No connections are available.</p>
+{% endif %}
+
+
+</html>
