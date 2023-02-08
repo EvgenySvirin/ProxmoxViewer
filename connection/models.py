@@ -26,4 +26,14 @@ class UserConnection(models.Model):
     date = models.DateField()
     
     def __str__(self):
-        return self.username + " " + str(self.connection_id) + " " + str(self.date)
+        return self.username + " " + str(self.connection) + " " + str(self.date)
+        
+        
+class NodePassword(models.Model):
+    nodename = models.CharField(max_length=200)
+    password = models.CharField(max_length=200)
+    connection =  models.ForeignKey(to=Connection, on_delete=models.CASCADE, default=Connection.get_default_pk)
+    date = models.DateField()
+    
+    def __str__(self):
+        return self.nodename + " " + str(self.password) + " " + str(self.connection) + " " + str(self.date)

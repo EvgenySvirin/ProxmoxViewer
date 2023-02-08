@@ -8,16 +8,19 @@ from django.shortcuts import render
 
 from django.shortcuts import get_object_or_404, render
 from django.contrib.auth.models import User
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
 
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth.decorators import login_required
 
+from subprocess import call, Popen
 
+import time
+import os
+import stat
 
-from .models import Connection
-from .models import UserConnection
+from .models import Connection, UserConnection, NodePassword
 
 import logging
 
@@ -88,6 +91,41 @@ def parse_id_node(post_key):
 	str_node = post_key[post_key.find('s') + 1:]
 	return str_id, str_node
 
+
+def getIpsDict(nodename, password, connection_id):
+	host = Connection.objects.get(pk=connection_id).host
+
+	unix_script = f"sshpass -p {password} ssh -o StrictHostKeyChecking=no root@{host} 'lxc-ls -f' >ips.txt"
+	print(unix_script)
+	temp_file = open("temp_file.sh", "w")
+	temp_file.write(unix_script)
+	temp_file.close()
+	
+	st = os.stat('temp_file.sh')
+	os.chmod('temp_file.sh', st.st_mode | stat.S_IEXEC)
+	
+	rc = Popen("./temp_file.sh", shell = True)
+	
+	print(host)
+	print(password)
+	time.sleep(1) # wait ips to write down
+
+
+	rc2 = call("pwd")
+	ips_file = open("ips.txt", 'r')
+	lines = ips_file.readlines()
+	print(lines)
+	return_dict = {}
+	for line in lines[1:]:
+		nl = line.split()
+		print(nl[0], nl[4], nl[5])
+		return_dict[nl[0]] = nl[4] if nl[4] != "-" else nl[5]
+		logger.warning("container checked")
+	
+	logger.warning(str(return_dict))
+	return return_dict
+
+
 @login_required
 def results(request, username, connection_id):    	   	
     connect(request, connection_id)
@@ -123,12 +161,22 @@ def results(request, username, connection_id):
     res += str(proxmox_connection_id)
     virts = []
     for node in proxmox.nodes.get():
+    	nodename = node['node']
+    	password = NodePassword.objects.filter(nodename=nodename, connection=connection_id).values('password').first().get('password')
+    	print("PASS2WORDWORD=", password)
+    	
+    	ips_dict = getIpsDict(nodename, password, connection_id)
+
     	for vm in proxmox.nodes(node['node']).lxc.get():
         	get_string = f"nodes/{node['node']}/lxc/{vm['vmid']}/config"
+        	get_network = f"nodes/{node['node']}/network/enp1s0" #не то(
         	c = proxmox.get(get_string)
+        	d = proxmox.get(get_network)
         	logger.warning(str(c))
-
-        	virts.append((vm['vmid'], vm['name'], node['node'], vm['status']))
+        	logger.warning("network")
+        	logger.warning(str(d))
+		
+        	virts.append((vm['vmid'], vm['name'], node['node'], vm['status'], ips_dict[str(vm['vmid'])]))
     virts = list(sorted(virts))
    
     return render(request, 'connection/results.html', {'res': res, 'virts' : virts})
@@ -185,17 +233,18 @@ def auth(request):
     if user is not None:
         login(request, user)
         return HttpResponseRedirect(reverse('connection:user', args=(username,)))
-    return render(request, 'connection/auth.html')
+    return render(request, 'connefction/auth.html')
 
 @login_required
-def user(request, username): #ну не в один запрос пока что
+def user(request, username): 
+    if request.method == "POST":
+    	logger.warning("POST")
+    	logout(request)
+    	return HttpResponseRedirect(reverse('connection:auth', args=()))
+    	
     users_connection = UserConnection.objects.filter(username=username).values('connection')
     context = {'connections' :Connection.objects.filter(pk__in=users_connection).all(), 'username' : username}
     
-    if not request.user.is_authenticated:
-        print("HELL NO")
-    else:
-    	print("K")
     return render(request, 'connection/user.html', context) 
 
 @login_required    

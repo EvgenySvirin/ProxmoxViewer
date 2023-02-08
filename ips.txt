@@ -1,0 +1,5 @@
+NAME STATE   AUTOSTART GROUPS IPV4            IPV6 UNPRIVILEGED 
+102  RUNNING 0         -      192.168.122.220 -    true         
+103  STOPPED 0         -      -               -    true         
+105  STOPPED 0         -      -               -    true         
+203  STOPPED 0         -      -               -    false        

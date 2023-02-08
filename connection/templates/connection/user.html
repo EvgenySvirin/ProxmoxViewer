@@ -12,10 +12,11 @@
     </style>
   </head>
 
-<p> HAHAHA</p>
+<form method="post">
+{% csrf_token %}
+	<input type="submit" value="Log out">
+</form>
 
-
-  
 {% if connections %}
     <p> List of connections: </p>
     <ul>
@@ -26,6 +27,9 @@
 {% else %}
     <p>No connections are available.</p>
 {% endif %}
+
+
+
 
 
 </html>
