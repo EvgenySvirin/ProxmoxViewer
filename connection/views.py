@@ -108,9 +108,9 @@ def getIpsDict(nodename, password, connection_id):
 	
 	print(host)
 	print(password)
-	time.sleep(1) # wait ips to write down
+ # wait ips to write down
 
-
+	time.sleep(1)
 	rc2 = call("pwd")
 	ips_file = open("ips.txt", 'r')
 	lines = ips_file.readlines()
@@ -121,7 +121,7 @@ def getIpsDict(nodename, password, connection_id):
 		print(nl[0], nl[4], nl[5])
 		return_dict[nl[0]] = nl[4] if nl[4] != "-" else nl[5]
 		logger.warning("container checked")
-	
+
 	logger.warning(str(return_dict))
 	return return_dict
 
@@ -154,7 +154,7 @@ def results(request, username, connection_id):
     	if virt_id is not None:
     		toggle_virt(virt_id, node_name)
     	return HttpResponseRedirect(reverse('connection:results', args=(username, connection_id)))
- 
+    
     global proxmox
     res = "Connection id:"
     global proxmox_connection_id
@@ -166,7 +166,7 @@ def results(request, username, connection_id):
     	print("PASS2WORDWORD=", password)
     	
     	ips_dict = getIpsDict(nodename, password, connection_id)
-
+    	time.sleep(1)
     	for vm in proxmox.nodes(node['node']).lxc.get():
         	get_string = f"nodes/{node['node']}/lxc/{vm['vmid']}/config"
         	get_network = f"nodes/{node['node']}/network/enp1s0" #не то(
@@ -176,7 +176,8 @@ def results(request, username, connection_id):
         	logger.warning("network")
         	logger.warning(str(d))
 		
-        	virts.append((vm['vmid'], vm['name'], node['node'], vm['status'], ips_dict[str(vm['vmid'])]))
+        	virts.append((vm['vmid'], vm['name'], node['node'], vm['status'], ips_dict.get(str(vm['vmid']))))
+
     virts = list(sorted(virts))
    
     return render(request, 'connection/results.html', {'res': res, 'virts' : virts})
