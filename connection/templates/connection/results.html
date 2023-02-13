@@ -33,7 +33,11 @@
 	{% csrf_token %}
 	<input type="submit"  name =s{{virt.0}}s{{virt.2}} value="Start/Stop">
 	</form>
-
+	
+	<form method="post">
+	{% csrf_token %}
+	<input type="submit"  name =d{{virt.0}}d{{virt.2}} value="Delete">
+	</form>
 
 {% endfor %}
 

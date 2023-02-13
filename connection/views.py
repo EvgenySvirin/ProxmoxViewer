@@ -51,6 +51,15 @@ def toggle_virt(virt_id, node_name): #toggle start/stop of a container or virtua
         		#proxmox.nodes(node['node']).lxc.post("nodes/{l}/lxc/102/status/stop")
         		break
 
+def delete_virt(virt_id, node_name): #toggle start/stop of a container or virtual machine
+    logger.warning("delete")
+    logger.warning(virt_id)
+    logger.warning(node_name)
+    global proxmox
+    proxmox.delete(f"nodes/{node_name}/lxc/{virt_id}") #убило)
+ 
+        		
+
 def create_container(request, connection_id):
     node_name = request.POST['nodename']
     
@@ -86,11 +95,10 @@ def download_template(request, connection_id):
 	
 	proxmox.post(post_string)
 	
-def parse_id_node(post_key):
-	str_id = post_key[: post_key.find('s')]
-	str_node = post_key[post_key.find('s') + 1:]
+def parse_id_node(post_key, letter):
+	str_id = post_key[: post_key.find(letter)]
+	str_node = post_key[post_key.find(letter) + 1:]
 	return str_id, str_node
-
 
 def getIpsDict(nodename, password, connection_id):
 	host = Connection.objects.get(pk=connection_id).host
@@ -149,10 +157,15 @@ def results(request, username, connection_id):
     	virt_id = None
     	for k in request.POST.keys():
     		if (k[0] == 's'):
-    			virt_id, node_name = parse_id_node(k[1:])
+    			virt_id, node_name = parse_id_node(k[1:], 's')
+    			if virt_id is not None:
+    				toggle_virt(virt_id, node_name)
     			break
-    	if virt_id is not None:
-    		toggle_virt(virt_id, node_name)
+    		elif (k[0] == 'd'):
+    			virt_id, node_name = parse_id_node(k[1:], 'd')
+    			if virt_id is not None:
+    				delete_virt(virt_id, node_name)
+    			break
     	return HttpResponseRedirect(reverse('connection:results', args=(username, connection_id)))
     
     global proxmox
@@ -166,7 +179,7 @@ def results(request, username, connection_id):
     	print("PASS2WORDWORD=", password)
     	
     	ips_dict = getIpsDict(nodename, password, connection_id)
-    	time.sleep(1)
+
     	for vm in proxmox.nodes(node['node']).lxc.get():
         	get_string = f"nodes/{node['node']}/lxc/{vm['vmid']}/config"
         	get_network = f"nodes/{node['node']}/network/enp1s0" #не то(
