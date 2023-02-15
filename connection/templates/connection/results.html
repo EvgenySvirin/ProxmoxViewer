@@ -24,19 +24,20 @@
 {% for virt in virts  %}
 	<div>
 	 <p> id: {{ virt.0 }} </p>
-	 <p>  node name: {{ virt.2 }}  </p> 
+	 <p> node name: {{ virt.2 }}  </p> 
 	 <p> name: {{virt.1}}  </p> 
  	 <p> status: {{ virt.3 }}  </p>
- 	 <p> ip: {{ virt.4 }}  </p>  
+ 	 <p> ip: {{ virt.4 }}  </p>
+ 	 <p> class: {{virt.5}} </p>  
 	</div>
 	<form method="post">
 	{% csrf_token %}
-	<input type="submit"  name =s{{virt.0}}s{{virt.2}} value="Start/Stop">
+	<input type="submit"  name =s{{virt.0}}s{{virt.2}}{{virt.5}} value="Start/Stop">
 	</form>
 	
 	<form method="post">
 	{% csrf_token %}
-	<input type="submit"  name =d{{virt.0}}d{{virt.2}} value="Delete">
+	<input type="submit"  name =d{{virt.0}}d{{virt.2}}{{virt.5}} value="Delete">
 	</form>
 
 {% endfor %}
@@ -86,7 +87,18 @@
 	
 	<label for="password"> password: </label>
 	<input type="text" id="password" name="password" value=""><br><br>
-	<input type="submit" value="Create container">
+	<input type="submit" name = "Create ct" value="Create container">
+</fieldset>
+</form>
+
+<form method="post">
+{% csrf_token %}
+<fieldset>
+	<label for="nodename"> nodename: </label>
+	<input type="text" id="nodename" name="nodename" value=""><br><br>
+	<label for="id"> id: </label>
+	<input type="text" id="vmid" name="vmid" value=""><br><br>
+	<input type="submit" name = "Create vm" value="Create vm">
 </fieldset>
 </form>
 

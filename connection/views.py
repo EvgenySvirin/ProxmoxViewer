@@ -30,43 +30,46 @@ proxmox = None
 proxmox_connection_id = None
 
 
-def toggle_virt(virt_id, node_name): #toggle start/stop of a container or virtual machine
+def toggle_virt(virt_id, node_name, cls): #toggle start/stop of a container or virtual machine
     logger.warning("toggle")
     logger.warning(virt_id)
     logger.warning(node_name)
+    logger.warning(cls)
+    cls_system = "lxc" if cls == "ct" else "qemu"
+    
     global proxmox
-    for node in proxmox.nodes.get():
+    for node in proxmox.nodes.get(): #fornow, for cycle is just to get status 
     	if node['node'] != node_name:
     		continue
-    	
-    	for vm in proxmox.nodes(node['node']).lxc.get():
-        	if int(vm['vmid']) == int(virt_id):
-        		logger.warning(vm['status'])
-        		logger.warning(vm)
-        		
-        		toggled_status = "start" if vm['status'] == "stopped" else "stop"
-        		post_string = f"nodes/{node['node']}/lxc/{virt_id}/status/{toggled_status}"
-        		print(post_string)
-        		proxmox.post(post_string)
-        		#proxmox.nodes(node['node']).lxc.post("nodes/{l}/lxc/102/status/stop")
-        		break
-
-def delete_virt(virt_id, node_name): #toggle start/stop of a container or virtual machine
+    	if cls_system == "lxc":
+    		for vm in proxmox.nodes(node['node']).lxc.get():
+    			if int(vm['vmid']) == int(virt_id):
+    				toggled_status = "start" if vm['status'] == "stopped" else "stop"
+    				post_string = f"nodes/{node['node']}/{cls_system}/{virt_id}/status/{toggled_status}"
+    				proxmox.post(post_string)
+    	else:		
+    		for vm in proxmox.nodes(node['node']).qemu.get():
+    			if int(vm['vmid']) == int(virt_id):
+    				toggled_status = "start" if vm['status'] == "stopped" else "stop"
+    				post_string = f"nodes/{node['node']}/{cls_system}/{virt_id}/status/{toggled_status}"
+    				proxmox.post(post_string)
+	
+def delete_virt(virt_id, node_name, cls): #delete a container or virtual machine
     logger.warning("delete")
     logger.warning(virt_id)
     logger.warning(node_name)
+    cls_system = "lxc" if cls == "ct" else "qemu"
+    
     global proxmox
-    proxmox.delete(f"nodes/{node_name}/lxc/{virt_id}") #убило)
- 
+    proxmox.delete(f"nodes/{node_name}/{cls_system}/{virt_id}")
         		
-
 def create_container(request, connection_id):
     node_name = request.POST['nodename']
     
     vmid = request.POST['vmid']
     ostemplate = request.POST['ostemplate']
     hostname = request.POST['hostname']
-    storage= request.POST['storage']    
+    storage = request.POST['storage']    
     cores = request.POST['cores']
     memory = request.POST['memory']
     swap = request.POST['swap']
@@ -86,6 +89,11 @@ def create_container(request, connection_id):
                 net0=net0,
                 password=password)
 
+def create_vm(request, connection_id):
+    node_name = request.POST['nodename']
+    vmid = request.POST['vmid']
+    proxmox.nodes(node_name).qemu.create(vmid=vmid)
+
 def download_template(request, connection_id):
 	node_name = request.POST['nodename']
 	storage = request.POST['storage']
@@ -96,9 +104,13 @@ def download_template(request, connection_id):
 	proxmox.post(post_string)
 	
 def parse_id_node(post_key, letter):
+	print("PARSE_ID")
+	print(post_key)
 	str_id = post_key[: post_key.find(letter)]
-	str_node = post_key[post_key.find(letter) + 1:]
-	return str_id, str_node
+	str_node = post_key[post_key.find(letter) + 1:][:-2]
+	str_class = post_key[-2] + post_key[-1]
+	return str_id, str_node, str_class
+
 
 def getIpsDict(nodename, password, connection_id):
 	host = Connection.objects.get(pk=connection_id).host
@@ -116,8 +128,8 @@ def getIpsDict(nodename, password, connection_id):
 	
 	print(host)
 	print(password)
- # wait ips to write down
-
+	
+	# wait ips to write down
 	time.sleep(1)
 	rc2 = call("pwd")
 	ips_file = open("ips.txt", 'r')
@@ -133,11 +145,8 @@ def getIpsDict(nodename, password, connection_id):
 	logger.warning(str(return_dict))
 	return return_dict
 
-
 @login_required
-def results(request, username, connection_id):    	   	
-    connect(request, connection_id)
-     
+def results(request, username, connection_id):    	   	     
     logger.warning("results")
     if request.method == "POST":
     	logger.warning("POST")
@@ -145,9 +154,11 @@ def results(request, username, connection_id):
 	
     	if "Refresh" in request.POST.keys():
    	   return HttpResponseRedirect(reverse('connection:results', args=(username, connection_id)))
-    	
-    	if "ostemplate" in request.POST.keys():
+    	if "Create ct" in request.POST.keys():
     	   create_container(request, connection_id)
+    	   return HttpResponseRedirect(reverse('connection:results', args=(username, connection_id)))
+    	if "Create vm" in request.POST.keys():
+    	   create_vm(request, connection_id)
     	   return HttpResponseRedirect(reverse('connection:results', args=(username, connection_id)))
     	if "template_url" in request.POST.keys():
     	   logger.warning("template_url")
@@ -157,14 +168,14 @@ def results(request, username, connection_id):
     	virt_id = None
     	for k in request.POST.keys():
     		if (k[0] == 's'):
-    			virt_id, node_name = parse_id_node(k[1:], 's')
+    			virt_id, node_name, cls = parse_id_node(k[1:], 's')
     			if virt_id is not None:
-    				toggle_virt(virt_id, node_name)
+    				toggle_virt(virt_id, node_name, cls)
     			break
     		elif (k[0] == 'd'):
-    			virt_id, node_name = parse_id_node(k[1:], 'd')
+    			virt_id, node_name, cls = parse_id_node(k[1:], 'd')
     			if virt_id is not None:
-    				delete_virt(virt_id, node_name)
+    				delete_virt(virt_id, node_name, cls)
     			break
     	return HttpResponseRedirect(reverse('connection:results', args=(username, connection_id)))
     
@@ -176,25 +187,18 @@ def results(request, username, connection_id):
     for node in proxmox.nodes.get():
     	nodename = node['node']
     	password = NodePassword.objects.filter(nodename=nodename, connection=connection_id).values('password').first().get('password')
-    	print("PASS2WORDWORD=", password)
-    	
+     	
     	ips_dict = getIpsDict(nodename, password, connection_id)
 
     	for vm in proxmox.nodes(node['node']).lxc.get():
-        	get_string = f"nodes/{node['node']}/lxc/{vm['vmid']}/config"
-        	get_network = f"nodes/{node['node']}/network/enp1s0" #не то(
-        	c = proxmox.get(get_string)
-        	d = proxmox.get(get_network)
-        	logger.warning(str(c))
-        	logger.warning("network")
-        	logger.warning(str(d))
-		
-        	virts.append((vm['vmid'], vm['name'], node['node'], vm['status'], ips_dict.get(str(vm['vmid']))))
+        	virts.append((vm['vmid'], vm['name'], node['node'], vm['status'], ips_dict.get(str(vm['vmid'])), 'ct'))
+        	
+    	for vm in proxmox.nodes(node['node']).qemu.get():
+        	virts.append((str(vm['vmid']), vm['name'], node['node'], vm['status'], ips_dict.get(str(vm['vmid'])), 'vm')) #str(vm['vmid']) vms go with int fsr 
 
     virts = list(sorted(virts))
    
     return render(request, 'connection/results.html', {'res': res, 'virts' : virts})
-
 
 def connect(request, connection_id):
     global proxmox_connection_id
@@ -235,7 +239,6 @@ def create_connection(request): #unused
     				 date=cur_date)
     new_connection.save()
 
-
 def auth(request):
     if request.method != "POST":
     	logger.warning("NOT POST")
@@ -264,7 +267,7 @@ def user(request, username):
 @login_required    
 def detail(request, username, connection_id):
     if request.method == "POST":
-    	logger.warning("NOT POST")
+    	connect(request, connection_id)
     	return HttpResponseRedirect(reverse('connection:results', args=(username,connection_id)))
     connection = get_object_or_404(Connection, pk=connection_id)
     return render(request, 'connection/detail.html', {'connection': connection})
